@@ -1,0 +1,106 @@
+---
+title: "Applying Machine Learning on Accelerometer Data "
+author: "Khushi Pathak"
+date: "18/05/2020"
+output: html_document
+---
+## Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+In this project, we will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participant They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The five ways are exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Only Class A corresponds to correct performance. The goal of this project is to predict the manner in which they did the exercise, i.e., Class A to E. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data Preprocessing
+
+```{r}
+
+library(caret)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(repmis)
+library(dplyr)
+```
+
+``` {r}
+#train_raw <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", header = TRUE)
+#validation_raw <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", header = TRUE)
+
+train_raw <- read.csv("training.csv", header = TRUE) 
+validation_raw <- read.csv("testing.csv", header = TRUE)
+```
+
+The training dataset has 19622 observations and 160 variables, and the testing data set contains 20 observations and the same variables as the training set. We are trying to predict the outcome of the variable `classe` in the training set.
+
+### Cleaning
+
+We now delete columns (predictors) of the training set that contain any missing values.
+
+```{R}
+usecolumns <- which(!is.na(validation_raw[1,]))
+train_clean <- train_raw %>% 
+    select(usecolumns) %>% 
+    filter(new_window == "no") %>% 
+    select(-(1:7))
+valdidation_clean <- validation_raw %>% select(usecolumns) %>% filter(new_window == "no") %>% select(-(1:7))
+
+```
+
+### Splitting
+
+We will use the new training set to train the data and get accuracy data on the test set we created. Afterwards, we can predict the values of the class in our validation set of 20 samples. First we create the train and test set, and we will try 2 different machine learning algorithms, randomForest and rpart. Since we are trying to predict categories of data instead of a continuous value, the random forest and rpart seem more suitable for categorization.
+
+
+```{r}
+
+in.train <- createDataPartition(y=train_clean$classe, p=0.6, list=FALSE)
+training <- train_clean[in.train, ] 
+testing <-  train_clean[-in.train,]
+```
+
+## Prediction Algorithms
+
+We use classification trees and random forests to predict the outcome.
+
+### Classification Trees
+
+We will use the `rpart` methods first for predicting.
+
+```{r}
+set.seed(123)
+rpartFit <- rpart(classe ~ ., data=training)
+prediction <- predict(rpartFit, testing, type = "class")
+cm <- confusionMatrix(prediction, testing$classe)
+cm$overall[1]  
+
+```
+Clearly, the accuracy is not good enough to proceed with.
+
+```{r}
+cm$table
+```
+
+
+### Random Forest
+
+We will now train our model using random forests.
+
+```{r}
+set.seed(123)
+rfFit <- randomForest(classe ~ ., data=training)
+rfprediction <- predict(rfFit, testing, type = "class")
+rfcm <- confusionMatrix(rfprediction, testing$classe)
+rfcm$overall[1]  
+
+```
+
+This model fit gives us a significantly higher accuracy that we can proceed with.
+
+```{r}
+rfcm$table
+```
+
+## Conclusion
+
+The classification trees algorithm gave us an accuracy of about 74%, while the random forests algorithm gave us an accuracy of over 99%.
